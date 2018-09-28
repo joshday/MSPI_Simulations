@@ -74,6 +74,11 @@ function simulation(n, p, nreps=100, seed=123; loss = .5 * L2DistLoss(), kw...)
             :r7 => Matrix{Float64}(undef, n, nreps),
             :r9 => Matrix{Float64}(undef, n, nreps)
         ),
+        :RMSPROP => Dict(
+            :r5 => Matrix{Float64}(undef, n, nreps),
+            :r7 => Matrix{Float64}(undef, n, nreps),
+            :r9 => Matrix{Float64}(undef, n, nreps)
+        ),
         :MSPI => Dict(
             :r5 => Matrix{Float64}(undef, n, nreps),
             :r7 => Matrix{Float64}(undef, n, nreps),
@@ -99,22 +104,31 @@ function simulation(n, p, nreps=100, seed=123; loss = .5 * L2DistLoss(), kw...)
             StatLearn(p, loss, NoPenalty(), ADAGRAD(); rate=LearningRate(.7)),
             StatLearn(p, loss, NoPenalty(), ADAGRAD(); rate=LearningRate(.9)),
         )
+        rms = Series(
+            StatLearn(p, loss, NoPenalty(), RMSPROP(); rate=LearningRate(.5)),
+            StatLearn(p, loss, NoPenalty(), RMSPROP(); rate=LearningRate(.7)),
+            StatLearn(p, loss, NoPenalty(), RMSPROP(); rate=LearningRate(.9)),
+        )
         mspi = Series(
             StatLearn(p, loss, NoPenalty(), MSPI(); rate=LearningRate(.5)),
             StatLearn(p, loss, NoPenalty(), MSPI(); rate=LearningRate(.7)),
             StatLearn(p, loss, NoPenalty(), MSPI(); rate=LearningRate(.9)),
         )
         for i in 1:n
-            xi, yi = @view(x[i, :]), y[i]
-            fit!(sgd, (xi, yi))
-            fit!(ada, (xi, yi))
-            fit!(mspi, (xi, yi))
+            ob = @view(x[i, :]), y[i]
+            fit!(sgd, ob)
+            fit!(ada, ob)
+            fit!(rms, ob)
+            fit!(mspi, ob)
             results[:SGD][:r5][i, r]        = OnlineStats.objective(sgd.stats[1], x, y) - best
             results[:SGD][:r7][i, r]        = OnlineStats.objective(sgd.stats[2], x, y) - best
             results[:SGD][:r9][i, r]        = OnlineStats.objective(sgd.stats[3], x, y) - best
             results[:ADAGRAD][:r5][i, r]    = OnlineStats.objective(ada.stats[1], x, y) - best
             results[:ADAGRAD][:r7][i, r]    = OnlineStats.objective(ada.stats[2], x, y) - best
             results[:ADAGRAD][:r9][i, r]    = OnlineStats.objective(ada.stats[3], x, y) - best
+            results[:RMSPROP][:r5][i, r]    = OnlineStats.objective(rms.stats[1], x, y) - best
+            results[:RMSPROP][:r7][i, r]    = OnlineStats.objective(rms.stats[2], x, y) - best
+            results[:RMSPROP][:r9][i, r]    = OnlineStats.objective(rms.stats[3], x, y) - best
             results[:MSPI][:r5][i, r]       = OnlineStats.objective(mspi.stats[1], x, y) - best
             results[:MSPI][:r7][i, r]       = OnlineStats.objective(mspi.stats[2], x, y) - best
             results[:MSPI][:r9][i, r]       = OnlineStats.objective(mspi.stats[3], x, y) - best
@@ -131,6 +145,11 @@ function simulation(n, p, nreps=100, seed=123; loss = .5 * L2DistLoss(), kw...)
             :r7 => Ribbon(results[:ADAGRAD][:r7], "r = .7"),
             :r9 => Ribbon(results[:ADAGRAD][:r9], "r = .9")
         ),
+        :RMSPROP => Dict(
+            :r5 => Ribbon(results[:RMSPROP][:r5], "r = .5"),
+            :r7 => Ribbon(results[:RMSPROP][:r7], "r = .7"),
+            :r9 => Ribbon(results[:RMSPROP][:r9], "r = .9")
+        ),
         :MSPI => Dict(
             :r5 => Ribbon(results[:MSPI][:r5], "r = .5"),
             :r7 => Ribbon(results[:MSPI][:r7], "r = .7"),
@@ -141,6 +160,7 @@ function simulation(n, p, nreps=100, seed=123; loss = .5 * L2DistLoss(), kw...)
     plots = Dict(
         :SGD => plot(Figure(collect(values(ribbons[:SGD])), "SGD"); ylim=ylim, kw...),
         :ADAGRAD => plot(Figure(collect(values(ribbons[:ADAGRAD])), "ADAGRAD"); ylim=ylim, kw...),
+        :RMSPROP => plot(Figure(collect(values(ribbons[:RMSPROP])), "RMSPROP"); ylim=ylim, kw...),
         :MSPI => plot(Figure(collect(values(ribbons[:MSPI])), "MSPI"); ylim=ylim, kw...),
     )
 end
